@@ -1,1 +1,1 @@
-Signal Repository Here: https://github.com/stravant/goodsignal
+Signal Repository: https://github.com/stravant/goodsignal
