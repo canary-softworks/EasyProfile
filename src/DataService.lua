@@ -23,7 +23,6 @@ DataStoreObjectHidden.__index = PlayerDataObject
 
 local ProfileService = require(Plugins.ProfileService)
 local Signal = require(Plugins.Signal)
-local Janitor = require(Plugins.Janitor)
 
 type ScriptSignal = typeof(Signal.new())
 
