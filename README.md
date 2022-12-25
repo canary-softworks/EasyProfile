@@ -6,3 +6,7 @@ Find it at:
 https://roblox.com/library/11856850992/
 
 Or download the RBXM file in the releases section.
+
+How do I test it without opening studio?
+
+Visit the game here: https://www.roblox.com/games/11898902337/DataService2-Testing
