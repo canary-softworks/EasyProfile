@@ -1,6 +1,8 @@
-type table = {any}
-type dictionary = {[string]: any}
-type array = {[number]: any}
+export type table = {any}
+export type dictionary = {[string]: any}
+export type array = {[number]: any}
+
+export type PlayerMetaData = {DataCreated: number; DataLoadCount: number}
 
 -- // Variables
 
@@ -251,6 +253,42 @@ end
 
 --[[
 
+	PlayerData:CreateLeaderstats(self: any, keys: {string}): nil
+
+	Creates leaderstats for the player based on `keys`.
+	
+	[keys]: For each string in this parameter, a new value will
+	be created to it's corresponding type. The value will be
+	the value saved to datastore, and the name will be the key
+	provided.
+
+--]]
+
+function PlayerDataObject:CreateLeaderstats(keys: {string})
+	local Leaderstats = Instance.new("Folder")
+	local ValueTypes = {
+		["number"] = "NumberValue";
+		["string"] = "StringValue";
+		["boolean"] = "BoolValue";
+	}
+
+	Leaderstats.Name = "leaderstats"
+	Leaderstats.Parent = self.Player
+
+	for _, value in keys do
+		if type(self:GetKey(value)) == "number" or type(self:GetKey(value)) == "boolean" or type(self:GetKey(value)) == "string" then
+			local NewValue = Instance.new(ValueTypes[type(self:GetKey(value))])
+
+			NewValue.Value = self:GetKey(value)
+			NewValue.Name = value
+
+			NewValue.Parent = Leaderstats
+		end
+	end
+end
+
+--[[
+
 	PlayerData:SetKey(self: any, key: string, value: any): nil
 
 	Sets/adds `key` and sets its value to `value`
@@ -266,8 +304,6 @@ function PlayerDataObject:SetKey(key: string, value: any)
 	if PlayerData then
 		PlayerData.Data[key] = value
 		self.KeyChanged:Fire(key, value)
-	else
-		error(string.format("Key '%s' does not exist.", key))
 	end
 end
 
@@ -288,6 +324,7 @@ function PlayerDataObject:GetKey(key: string): any
 		return PlayerData.Data[key]
 	else
 		error(string.format("Key '%s' does not exist.", key))
+		return nil
 	end
 end
 
@@ -337,6 +374,22 @@ function PlayerDataObject:GetKeyChangedSignal(key: string): ScriptSignal
 	else
 		error(string.format("Key '%s' does not exist.", key))
 	end
+end
+
+--[[
+
+	PlayerData:GetMetaData(self: any): PlayerMetaData
+
+	Returns metadata about a player. Data types include
+	the os.time() when the data for the player was cre-
+	ated, and the amount of times it was loaded ever.
+
+--]]
+
+function PlayerDataObject:GetMetaData(): PlayerMetaData
+	local PlayerData = LoadedPlayers[self.Name][self.Player]
+	
+	return {DataCreated = PlayerData.MetaData.ProfileCreateTime; DataLoadCount = PlayerData.MetaData.SessionLoadCount}
 end
 
 return Package
