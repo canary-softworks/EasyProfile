@@ -1,8 +1,15 @@
-export type table = {any}
-export type dictionary = {[string]: any}
-export type array = {[number]: any}
+type table = {any}
+type dictionary = {[string]: any}
+type array = {[number]: any}
 
-export type PlayerMetaData = {DataCreated: number; DataLoadCount: number}
+type PlayerMetaData = {DataCreated: number; DataLoadCount: number}
+type SessionMetaData = {Name: string; LoadedAt: number; Key: string}
+type ScriptConnection = {Disconnect: (self: any) -> (); Connected: boolean}
+type ScriptSignal = {
+	Connect: (self: any, func: (...any) -> ()) -> (ScriptConnection);
+	Wait: (self: any) -> (...any);
+	Once: (self: any, func: (...any) -> ()) -> (ScriptConnection);
+}
 
 -- // Variables
 
@@ -15,40 +22,37 @@ local Settings = require(script.Settings)
 ---
 
 local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
 
 local LoadedPlayers = { }
+
 local DataStoreObject = { }
 local PlayerDataObject = { }
-local DataStoreObjectHidden = { }
-
-DataStoreObjectHidden.__index = PlayerDataObject
 
 local ProfileService = require(Plugins.ProfileService)
 local Signal = require(Plugins.Signal)
-
-type ScriptSignal = typeof(Signal.new())
+local console = require(Plugins.Console)
+local OptionalParam = require(Plugins.OptionalParam)
 
 -- // Functions
 
 ProfileService.CriticalStateSignal:Connect(function()
-	warn("Code 503: DataService is currently experiencing issues with data storing. Try again later.")
+	console.warn("Code 503: DataService is currently experiencing issues with data storing. Try again later.")
 end)
-
-local function assert<a>(value: a, callback: () -> ()): a?
-	if not value then
-		callback()
-	end
-	return value
-end
 
 --[[
 
-	DataService.CreateDataStore(name: string, defaultData: dictionary): DataStoreObject
-
-	Creates / gets a new DataStore, essentially DataStoreService:GetDataStore().
+	Creates / gets a DataStore, equivalent to
+	`DataStoreService:GetDataStore()`.
 	
-	[name]: The name of the DataStore that should be returned.
-	[defualtData]: A dictionary of the default data a player will have upon joining the first time.
+	@param [string] name - The name of the data-
+	store to get.
+	
+	@param [dictionary] defaultData - The data
+	to give to a player when they are new to a
+	game.
+	
+	@returns [DataStoreObject]
 
 --]]
 
@@ -57,37 +61,28 @@ function Package.CreateDataStore(name: string, defaultData: dictionary)
 	local ProfileStore = ProfileService.GetProfileStore(name, defaultData)
 
 	if LoadedPlayers[name] then
-		error(string.format("DataService: DataStore '%s' already exists.", name))
+		console.error(`A DataStore named '{name}' already exists.`)
 	end
 
 	LoadedPlayers[name] = { }
 
 	DataStoreObject.SessionLockClaimed = Signal.new() :: ScriptSignal
 	DataStoreObject.SessionLockUnclaimed = Signal.new() :: ScriptSignal
+	
 	DataStoreObject.Name = name :: string
-	DataStoreObject.DataStore = ProfileStore :: typeof(ProfileStore)
+	DataStoreObject.ClassName = "DataStoreObject" :: string
+	DataStoreObject.DataStore = ProfileStore :: any
+	
+	table.freeze(DataStoreObject)
 
 	return DataStoreObject
 end
 
 --[[
 
-	DataStoreObject:GetName(): string
-
-	Returns the DataStore's name, useful for debugging.
-
---]]
-
-function DataStoreObject:GetName(): string
-	return self.Name
-end
-
---[[
-
-	DataStoreObject:GetLoadedPlayers(): {Player}
-
-	Returns a table of all the players that were loaded from when this function was called.
-	Can be useful for seeing if all player's data is loaded.
+	Gets all loaded players in a DataStoreObject.
+	
+	@returns [array] An array of players.
 
 --]]
 
@@ -103,11 +98,14 @@ end
 
 --[[
 
-	DataStoreObject:RemoveDataAsync(userId: number): nil
-
-	Wipes a user's data, can be helpful for dealing with GDPR compliance in-game.
+	Completely wipes a player's data,
+	useful for complying with GDPR in
+	a live game.
 	
-	[userId]: The UserId of the player that the data should be removed from.
+	@param [number] userId - The userId
+	of the whose data to wipe.
+	
+	@returns [void]
 
 --]]
 
@@ -117,11 +115,15 @@ end
 
 --[[
 
-	DataStoreObject:GetDataAsync(userId: number): dictionary?
-
-	Returns a read-only dictionary of `userId`'s data.
+	Allows you to view a player's data that
+	is not in-game.
 	
-	[userId]: The UserId of the player that the data should be viewed from.
+	@param [number] userId - The `userId` of 
+	the player to view the data of
+	
+	@returns [dictionary?] - A player's data,
+	you can make changes to it though they will
+	not save.
 
 --]]
 
@@ -129,9 +131,9 @@ function DataStoreObject:GetDataAsync(userId: number): dictionary?
 	local RequestedData = self.DataStore:ViewProfileAsync(string.format(Settings.KeyStringPattern, userId)).Data
 
 	if RequestedData then
-		return table.freeze(RequestedData)
+		return RequestedData
 	else
-		warn(string.format("Requested data for user %d does not exist.", userId))
+		console.silentError(`Requested data for user {userId} does not exist.`)
 	end
 
 	return
@@ -139,86 +141,118 @@ end
 
 --[[
 
-	DataStoreObject:LoadDataAsync(player: Player, reconcileData: boolean?): PlayerDataObject
-
-	Loads the player data and allows you to change it.
+	Loads the provided player's data, unlike
+	`DataStoreObject:GetDataAsync()`, this can
+	be used to edit/save a player's data, only
+	if they are in the running server.
 	
-	[player]: The player the data should be loaded for.
-	[reconcileData (Optional)]: If you changed the `defaultData` argument in your datastore, this argument
-	determines if any new/removed keys from the default data should apply to the person you are loading data to.
-	Defaults to true. 
+	@param [Player] player - The player to load
+	the data from.
+	
+	@param [?boolean] reconcileData - If you
+	change your `defaultData`, the next time
+	the player loads in their data it will
+	reflect those changes. Note: It will
+	only reset keys, all values will
+	remain the same.
+	
+	@returns [PlayerDataObject]
 
 --]]
 
-function DataStoreObject:LoadDataAsync(player: Player, reconcileData: boolean?)
-	reconcileData = reconcileData or true
+function DataStoreObject:LoadDataAsync(player: Player, reconcileData: boolean?, claimedHandler: (placeId: number, gameJobId: string) -> () | "ForceLoad" | "Cancel"?)
+	local PlayerDataObject = setmetatable({ }, {__index = PlayerDataObject})
 	
-	assert(player, function()
-		error("DataService: Cannot load player data without player object.")
-	end)
-
-	local PlayerDataObject = setmetatable({ }, DataStoreObjectHidden)
-	local PlayerProfile = self.DataStore:LoadProfileAsync(string.format(Settings.KeyStringPattern, player.UserId))
+	reconcileData = OptionalParam(reconcileData, true)
+	claimedHandler = OptionalParam(claimedHandler, "ForceLoad")
+	
+	local PlayerData = self.DataStore:LoadProfileAsync(string.format(Settings.KeyStringPattern, player.UserId), claimedHandler)
+	
+	local Created = os.time()
+	local LoadedSignal = Signal.new()
 
 	self.SessionLockClaimed:Fire(player)
 
 	PlayerDataObject.Name = self.Name :: string
 	PlayerDataObject.Player = player :: Player
+	
+	PlayerDataObject.LoadedAt = Created
 
 	PlayerDataObject.KeyChanged = Signal.new() :: ScriptSignal
+	PlayerDataObject.KeyAdded = Signal.new() :: ScriptSignal
 	PlayerDataObject.KeyRemoved = Signal.new() :: ScriptSignal
-	PlayerDataObject.DataLoaded = Signal.new() :: ScriptSignal
+	PlayerDataObject.GlobalKeyAdded = Signal.new() :: ScriptSignal
 
-	if PlayerProfile then
-		PlayerProfile:AddUserId(player.UserId)
+	task.defer(function()
+		if PlayerData then
+			PlayerData:AddUserId(player.UserId)
 
-		if reconcileData then
-			PlayerProfile:Reconcile()
-		end
+			if reconcileData then
+				PlayerData:Reconcile()
+			end
 
-		PlayerProfile:ListenToRelease(function()
-			LoadedPlayers[self.Name][player] = nil
-			setmetatable(PlayerDataObject, nil)
-			
-			player:Kick("DataService\n\nPlayer data was loaded on another server or did not leave.")
-		end)
+			PlayerData:ListenToRelease(function()
+				LoadedPlayers[self.Name][player] = nil
+				
+				setmetatable(PlayerDataObject, nil)
+				table.clear(PlayerDataObject)
 
-		if player:IsDescendantOf(Players) then
-			LoadedPlayers[self.Name][player] = PlayerProfile
-
-			task.defer(function()
-				repeat task.wait() until PlayerDataObject.DataLoaded._listening == true
-				PlayerDataObject.DataLoaded:Fire()
+				player:Kick(`Could not save data for user {player.UserId}; possible data corruption. Retry later.`)
 			end)
+
+			if player:IsDescendantOf(Players) then
+				LoadedPlayers[self.Name][player] = PlayerData
+				
+				for _, globalKey in ipairs(PlayerData.GlobalUpdates:GetActiveUpdates()) do
+					PlayerData.GlobalUpdates:LockActiveUpdate(globalKey[1])
+				end
+				
+				PlayerData.GlobalUpdates:ListenToNewActiveUpdate(function(id, data)
+					PlayerData.GlobalUpdates:LockActiveUpdate(id)
+				end)
+				
+				PlayerData.GlobalUpdates:ListenToNewLockedUpdate(function(id, data)
+					PlayerDataObject.GlobalKeyAdded:Fire(data.key_type, data.sent_data)
+					PlayerData.GlobalUpdates:ClearLockedUpdate(id)
+				end)
+				
+				LoadedSignal:Fire()
+			else
+				PlayerData:Release()
+			end
 		else
-			PlayerProfile:Release()
+			player:Kick(`Could not load data for user {player.UserId}; retry later.`)
+			console.warn(`Could not load data for user {player.UserId}; retry later.`)
 		end
-	else
-		player:Kick("DataService\n\nPlayer data was trying to be loaded on another server at the same time.")
-	end
+	end)
+	
+	LoadedSignal:Wait()
 
 	return PlayerDataObject
 end
 
 --[[
 
-	DataStoreObject:UnclaimSessionLock(self: any, player: Player, valuesToSave: dictionary?): nil
-
-	Unclaims the data session lock of the loaded player data.
+	Unclaims the session lock on the provided
+	player. With valuesToSave, you can easily
+	save any attributes or values you may have
+	added to the player to get data easily.
 	
-	Only use this function when the player is leaving/teleporting,
-	or else the player will be kicked from the game.
+	@param [Player] player - The player to unc-
+	laim the session lock for.
 	
-	[player]: The player whose session lock should be unclaimed.
-	[valuesToSave (Optional)]: Values to save when the player's
-	session lock is unclaimed. For example, you might have attri-
-	butes in the player that store data, and you want that data
-	to be saved when the player leaves.
+	@param [?dictionary] valuesToSave - Any
+	values that should be saved when the pl-
+	ayer is removed from the game.
+	
+	@returns [void]
 
 --]]
 
 function DataStoreObject:UnclaimSessionLock(player: Player, valuesToSave: dictionary?)
 	local PlayerData = LoadedPlayers[self.Name][player]
+	
+	console.assert(player, "Cannot unclaim session lock; field 'player' is nil.")
 
 	if PlayerData then
 		if valuesToSave then
@@ -226,7 +260,7 @@ function DataStoreObject:UnclaimSessionLock(player: Player, valuesToSave: dictio
 				if PlayerData.Data[key] and typeof(value) ~= "Instance" then
 					PlayerData.Data[key] = value
 				else
-					error(string.format("DataService: Invalid key: '%s' is an instance or does not exist.", key))
+					console.error(`DataService: Invalid key: {key} is an instance or does not exist.`)
 				end
 			end
 		end
@@ -234,67 +268,43 @@ function DataStoreObject:UnclaimSessionLock(player: Player, valuesToSave: dictio
 		PlayerData:Release()
 		self.SessionLockUnclaimed:Fire(player)
 	else
-		warn(string.format("%s's data is not currently session-locked.", player.Name))
+		console.warn(`User {player.UserId}'s data is not currently session-locked.`)
 	end
-end
-
-function DataStoreObject:SetGlobalKey(userId: number, keyType: string, data: dictionary)
-	-- self.DataStore:GlobalUpdateProfileAsync(userId, function(GlobalUpdates)
-	-- GlobalUpdates:AddActiveUpdate({
-	--	 Type = keyType;
-	-- 	 Data = data;
-	--	})
-	--	end)
-end
-
-function DataStoreObject:GetGlobalKey(userId: number, keyType: string): any
-	return
 end
 
 --[[
 
-	PlayerData:CreateLeaderstats(self: any, keys: {string}): nil
-
-	Creates leaderstats for the player based on `keys`.
+	Sends out a global key to the player with the
+	passed user id.
 	
-	[keys]: For each string in this parameter, a new value will
-	be created to it's corresponding type. The value will be
-	the value saved to datastore, and the name will be the key
-	provided.
+	@param [number] userId - The user the key should
+	be sent to.
+	@param [string] keyType - The type of the key,
+	used to check the type if needed.
+	@param [any] data - Data to be sent with the key.
+	@returns [void]
 
 --]]
 
-function PlayerDataObject:CreateLeaderstats(keys: {string})
-	local Leaderstats = Instance.new("Folder")
-	local ValueTypes = {
-		["number"] = "NumberValue";
-		["string"] = "StringValue";
-		["boolean"] = "BoolValue";
-	}
-
-	Leaderstats.Name = "leaderstats"
-	Leaderstats.Parent = self.Player
-
-	for _, value in keys do
-		if type(self:GetKey(value)) == "number" or type(self:GetKey(value)) == "boolean" or type(self:GetKey(value)) == "string" then
-			local NewValue = Instance.new(ValueTypes[type(self:GetKey(value))])
-
-			NewValue.Value = self:GetKey(value)
-			NewValue.Name = value
-
-			NewValue.Parent = Leaderstats
+function DataStoreObject:SetGlobalKeyAsync(userId: number, key: string, value: any)
+	self.DataStore:GlobalUpdateProfileAsync(
+		string.format(Settings.KeyStringPattern, userId),
+		function(global_updates)
+			global_updates:AddActiveUpdate({
+				key_type = key;
+				sent_data = value;
+			})
 		end
-	end
+	)
 end
 
 --[[
 
-	PlayerData:SetKey(self: any, key: string, value: any): nil
-
-	Sets/adds `key` and sets its value to `value`
+	Sets a key in the player's data.
 	
-	[key]: The key to be set/added.
-	[value]: The value that `key` should be set to.
+	@param [string] key - The name of the key to set.
+	@param [any] value - The value of the key.
+	@returns [void]
 
 --]]
 
@@ -302,39 +312,65 @@ function PlayerDataObject:SetKey(key: string, value: any)
 	local PlayerData = LoadedPlayers[self.Name][self.Player]
 
 	if PlayerData then
+		if not PlayerData.Data[key] then
+			self.KeyAdded:Fire(key, value)
+		else
+			self.KeyChanged:Fire(key, value)
+		end
+		
 		PlayerData.Data[key] = value
-		self.KeyChanged:Fire(key, value)
 	end
 end
 
 --[[
 
-	PlayerData:GetKey(self: any, key: string): any
-
-	Returns `key` if it exists.
+	Gets the value of a key in a player's
+	data, nil and an error if it doesn't
+	exist.
 	
-	[key]: The key to be returned.
+	@param [string] key - The key to fetch.
+	@returns [any?] The value of the key passed.
 
 --]]
 
-function PlayerDataObject:GetKey(key: string): any
+function PlayerDataObject:GetKey(key: string): any?
 	local PlayerData = LoadedPlayers[self.Name][self.Player]
 
 	if PlayerData and PlayerData.Data[key] then
 		return PlayerData.Data[key]
 	else
-		error(string.format("Key '%s' does not exist.", key))
+		console.error(`Key '{key}' does not exist.`)
 		return nil
 	end
 end
 
 --[[
 
-	PlayerData:RemoveKey(self: any, key: string): nil
-
-	Removes `key` from data if it exists.
+	Gets all global keys sent to a player. They are
+	removed after this process.
 	
-	[key]: The key to remove.
+	@returns [dictionary]
+
+--]]
+
+function PlayerDataObject:GetGlobalKeys(): {[string]: any}
+	local PlayerData = LoadedPlayers[self.Name][self.Player]
+	local keys = { } :: {[string]: any}
+	
+	for _, globalKey in ipairs(PlayerData.GlobalUpdates:GetLockedUpdates()) do
+		keys[globalKey[2].key_type] = globalKey[2].sent_data
+		PlayerData.GlobalUpdates:ClearLockedUpdate(globalKey[1])
+	end
+	
+	return keys
+end
+
+--[[
+
+	Removes a key from the player's data, errors if nil.
+	
+	@param [string] key - The key to be removed.
+	@returns [void]
 
 --]]
 
@@ -345,17 +381,17 @@ function PlayerDataObject:RemoveKey(key: string)
 		PlayerData.Data[key] = nil
 		self.KeyRemoved:Fire(key)
 	else
-		error(string.format("Key '%s' does not exist.", key))
+		console.error(`Key '{key}' does not exist.`)
 	end
 end
 
 --[[
 
-	PlayerData:GetKeyChangedSignal(self: any, key: string): ScriptSignal
-
 	Returns a ScriptSignal that fires whenever `key` is changed.
 	
-	[key]: The key to be monitored.
+	@param [string] key - The key to be monitored.
+	@returns [ScriptSignal] The signal that is fired when the
+	specified key is changed.
 
 --]]
 
@@ -372,17 +408,17 @@ function PlayerDataObject:GetKeyChangedSignal(key: string): ScriptSignal
 
 		return event
 	else
-		error(string.format("Key '%s' does not exist.", key))
+		console.silentError(`Key '{key}' does not exist.`)
 	end
 end
 
 --[[
 
-	PlayerData:GetMetaData(self: any): PlayerMetaData
-
 	Returns metadata about a player. Data types include
 	the os.time() when the data for the player was cre-
 	ated, and the amount of times it was loaded ever.
+	
+	@returns [PlayerMetaData]
 
 --]]
 
@@ -390,6 +426,20 @@ function PlayerDataObject:GetMetaData(): PlayerMetaData
 	local PlayerData = LoadedPlayers[self.Name][self.Player]
 	
 	return {DataCreated = PlayerData.MetaData.ProfileCreateTime; DataLoadCount = PlayerData.MetaData.SessionLoadCount}
+end
+
+--[[
+
+	Gets info about a player's local session. Inform-
+	ation like Datastore name, the time the data was
+	loaded at, and the data key are returned.
+	
+	@returns [DataIdentity]
+
+--]]
+
+function PlayerDataObject:GetSessionMetaData(): SessionMetaData
+	return {Name = self.Name :: string; LoadedAt = self.LoadedAt :: number; Key = string.format(Settings.KeyStringPattern, self.Player.UserId) :: string}
 end
 
 return Package
