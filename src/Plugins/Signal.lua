@@ -22,6 +22,8 @@
 -- Authors:                                                                   --
 --   stravant - July 31st, 2021 - Created the file.                           --
 --   maddjames28 - December 23rd, 2022 - Edited the file.                     --
+--   maddjames28 - January 14th, 2023 - Edited the file.                      --
+--   maddjames28 - Feburary 11th, 2023 - Edited the file.                     --
 --------------------------------------------------------------------------------
 
 -- The currently idle thread to run the next handler on
@@ -60,7 +62,7 @@ Connection.__index = Connection
 
 function Connection.new(signal, fn)
 	return setmetatable({
-		_connected = true,
+		Connected = true,
 		_signal = signal,
 		_fn = fn,
 		_next = false,
@@ -68,7 +70,7 @@ function Connection.new(signal, fn)
 end
 
 function Connection:Disconnect()
-	self._connected = false
+	self.Connected = false
 	self._signal._listening = false
 
 	-- Unhook the node, but DON'T clear it. That way any fire calls that are
@@ -134,7 +136,7 @@ end
 function Signal:Fire(...: any)
 	local item = self._handlerListHead
 	while item do
-		if item._connected then
+		if item.Connected then
 			if not freeRunnerThread then
 				freeRunnerThread = coroutine.create(runEventHandlerInFreeThread)
 				-- Get the freeRunnerThread to the first yield
@@ -163,9 +165,20 @@ end
 function Signal:Once(func: (...any) -> ())
 	local cn;
 	cn = self:Connect(function(...)
-		if cn._connected then
+		if cn.Connected then
 			cn:Disconnect()
 		end
+		func(...)
+	end)
+	return cn
+end
+
+-- Implement Signal:ConnectParallel() in terms of a provided function
+-- which is ran in parallel automatically.
+function Signal:ConnectParallel(func: (...any) -> ())
+	local cn;
+	cn = self:Connect(function(...)
+		task.desynchronize()
 		func(...)
 	end)
 	return cn
