@@ -288,10 +288,6 @@ function PlayerDataObject:UpdateKey<a>(key: string, callback: (oldValue: a) -> (
 	self.KeyUpdated:Fire(key, newValue, oldValue)
 end
 
-PlayerDataObject:UpdateKey("MyKey", function(e)
-	return e + 500
-end)
-
 function PlayerDataObject:GetKeyChangedSignal(key: string): ScriptSignal<any>?
 	local PlayerData = self._data
 	local Event = Signal.new()
