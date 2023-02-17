@@ -10,10 +10,10 @@ type ScriptConnection = {
 }
 
 type ScriptSignal<T...> = {
-	Connect: (self: ScriptSignal<T...>, func: (T...) -> ()) -> (ScriptConnection);
-	Wait: (self: ScriptSignal<T...>) -> (T...);
-	Once: (self: ScriptSignal<T...>, func: (T...) -> ()) -> (ScriptConnection);
-	ConnectParallel: (self: ScriptSignal<T...>, func: (T...) -> ()) -> (ScriptConnection);
+	Connect: (self: ScriptSignal<T...>?, func: (T...) -> ()) -> (ScriptConnection);
+	Wait: (self: ScriptSignal<T...>?) -> (T...);
+	Once: (self: ScriptSignal<T...>?, func: (T...) -> ()) -> (ScriptConnection);
+	ConnectParallel: (self: ScriptSignal<T...>?, func: (T...) -> ()) -> (ScriptConnection);
 }
 
 -- // Variables
@@ -28,6 +28,7 @@ local Settings = require(script.Settings)
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
+local HttpService = game:GetService("HttpService")
 local ProfileService = require(Plugins.ProfileService)
 
 local LoadedPlayers = { }
@@ -105,6 +106,7 @@ function DataStoreObject:LoadDataAsync(player: Player, reconcileData: boolean?, 
 	local PlayerDataObject = setmetatable({ }, {__index = PlayerDataObject})
 	
 	console.assert(player, "DataService: Cannot unclaim session lock for a nil player.")
+	
 	reconcileData = OptionalParam(reconcileData, true)
 	claimedHandler = OptionalParam(claimedHandler, function()
 		return "ForceLoad"
@@ -120,6 +122,7 @@ function DataStoreObject:LoadDataAsync(player: Player, reconcileData: boolean?, 
 	PlayerDataObject.KeyChanged = Signal.new() :: ScriptSignal<string, any>
 	PlayerDataObject.KeyAdded = Signal.new() :: ScriptSignal<string, any>
 	PlayerDataObject.KeyRemoved = Signal.new() :: ScriptSignal<string>
+	PlayerDataObject.KeyUpdated = Signal.new() :: ScriptSignal<string, any, any>
 	
 	PlayerDataObject.GlobalKeyAdded = Signal.new() :: ScriptSignal<GlobalKey>
 	
@@ -178,7 +181,7 @@ function DataStoreObject:LoadDataAsync(player: Player, reconcileData: boolean?, 
 end
 
 function DataStoreObject:UnclaimSessionLock(player: Player, valuesToSave: dictionary?)
-	local PlayerData = LoadedPlayers[self.Name][player]
+	local PlayerData = self._data
 	
 	console.assert(player, "DataService: Cannot unclaim session lock for a nil player.")
 	
@@ -271,7 +274,25 @@ function PlayerDataObject:RemoveKey(key: string)
 	self.KeyRemoved:Fire(key)
 end
 
-function PlayerDataObject:GetKeyChangedSignal(key: string): RBXScriptSignal?
+function PlayerDataObject:UpdateKey<a>(key: string, callback: (oldValue: a) -> (any))
+	local PlayerData = self._data
+
+	if not PlayerData then
+		return
+	end
+	
+	local oldValue = self:GetKey(key)
+	local newValue = callback(oldValue)
+	
+	self:SetKey(key, newValue)
+	self.KeyUpdated:Fire(key, newValue, oldValue)
+end
+
+PlayerDataObject:UpdateKey("MyKey", function(e)
+	return e + 500
+end)
+
+function PlayerDataObject:GetKeyChangedSignal(key: string): ScriptSignal<any>?
 	local PlayerData = self._data
 	local Event = Signal.new()
 	
@@ -340,6 +361,13 @@ function PlayerDataObject:RemoveMetaTag(tag: string)
 	
 	PlayerData.MetaData.MetaTags[tag] = nil
 	self.MetaTagRemoved:Fire(tag)
+end
+
+function PlayerDataObject:GetDataUsage(): number
+	local EncodedUsage = HttpService:JSONEncode(self._data.Data)
+	local UsageLength = string.len(EncodedUsage)
+	
+	return (UsageLength / 4194304) * 100
 end
 
 return table.freeze(Package)
