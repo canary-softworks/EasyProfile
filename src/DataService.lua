@@ -2,7 +2,7 @@ type dictionary = {[string]: any}
 type array = {[number]: any}
 
 type PlayerMetaData = {DataCreated: number; DataLoadCount: number; ActiveSession: {placeId: number; jobId: string;}}
-type GlobalKey = {Key: string, Value: any, KeyId: number}
+export type GlobalKey = {Key: string, Value: any, KeyId: number}
 
 type ScriptConnection = {
 	Disconnect: (self: ScriptConnection) -> ();
@@ -80,7 +80,7 @@ end
 function DataStoreObject:GetLoadedPlayers(): {Player}
 	local PlayersTable = { }
 
-	for player, data in pairs(LoadedPlayers[self.Name]) do
+	for player, data in ipairs(LoadedPlayers[self.Name]) do
 		table.insert(PlayersTable, player)
 	end
 
@@ -149,7 +149,8 @@ function DataStoreObject:LoadDataAsync(player: Player, reconcileData: boolean?, 
 		PlayerData:AddUserId(player.UserId)
 		PlayerData:ListenToRelease(function()
 			LoadedPlayers[self.Name][player] = nil
-
+			self.SessionLockUnclaimed:Fire(player)
+		
 			setmetatable(PlayerDataObject, nil)
 			table.clear(PlayerDataObject)
 
@@ -181,12 +182,13 @@ function DataStoreObject:LoadDataAsync(player: Player, reconcileData: boolean?, 
 end
 
 function DataStoreObject:UnclaimSessionLock(player: Player, valuesToSave: dictionary?)
-	local PlayerData = self._data
+	local PlayerData = LoadedPlayers[self.Name][player]
 	
 	console.assert(player, "DataService: Cannot unclaim session lock for a nil player.")
 	
 	if not PlayerData then
 		console.silentError(`DataService: User {player.UserId}'s data is not currently session-locked.`)
+		return
 	end
 	
 	if valuesToSave then
@@ -201,7 +203,6 @@ function DataStoreObject:UnclaimSessionLock(player: Player, valuesToSave: dictio
 	end
 
 	PlayerData:Release()
-	self.SessionLockUnclaimed:Fire(player)
 end
 
 function DataStoreObject:SetGlobalKeyAsync<a>(userId: number, key: string, value: a)
@@ -246,7 +247,7 @@ function PlayerDataObject:GetKey<a>(key: string): a?
 	return PlayerData.Data[key]
 end
 
-function PlayerDataObject:GetGlobalKeys<a>(): {GlobalKey}?
+function PlayerDataObject:GetGlobalKeys(): {GlobalKey}?
 	local PlayerData = self._data
 	local Keys = { }
 	
