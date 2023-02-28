@@ -80,7 +80,7 @@ end
 function DataStoreObject:GetLoadedPlayers(): {Player}
 	local PlayersTable = { }
 
-	for player, data in ipairs(LoadedPlayers[self.Name]) do
+	for player, data in pairs(LoadedPlayers[self.Name]) do
 		table.insert(PlayersTable, player)
 	end
 
@@ -102,12 +102,13 @@ function DataStoreObject:GetDataAsync(userId: number): dictionary?
 	return RequestedData
 end
 
-function DataStoreObject:LoadDataAsync(player: Player, reconcileData: boolean?, claimedHandler: (placeId: number, gameJobId: string) -> ("ForceLoad" | "Cancel")?)
+function DataStoreObject:LoadDataAsync(player: Player, reconcileData: boolean?, userIds: {number}? | number, claimedHandler: (placeId: number, gameJobId: string) -> ("ForceLoad" | "Cancel")?)
 	local PlayerDataObject = setmetatable({ }, {__index = PlayerDataObject})
 	
 	console.assert(player, "DataService: Cannot unclaim session lock for a nil player.")
 	
 	reconcileData = OptionalParam(reconcileData, true)
+	userIds = OptionalParam(userIds, player.UserId)
 	claimedHandler = OptionalParam(claimedHandler, function()
 		return "ForceLoad"
 	end)
@@ -146,7 +147,14 @@ function DataStoreObject:LoadDataAsync(player: Player, reconcileData: boolean?, 
 			PlayerData:Reconcile()
 		end
 		
-		PlayerData:AddUserId(player.UserId)
+		if type(userIds) == "table" then
+			for index, value in ipairs(userIds) do
+				PlayerData:AddUserId(value)
+			end
+		else
+			PlayerData:AddUserId(userIds)
+		end
+		
 		PlayerData:ListenToRelease(function()
 			LoadedPlayers[self.Name][player] = nil
 			self.SessionLockUnclaimed:Fire(player)
@@ -161,6 +169,10 @@ function DataStoreObject:LoadDataAsync(player: Player, reconcileData: boolean?, 
 		PlayerDataObject._data = LoadedPlayers[self.Name][player]
 				
 		for _, globalKey in ipairs(PlayerData.GlobalUpdates:GetActiveUpdates()) do
+			if not PlayerData:IsActive() then
+				break
+			end
+			
 			PlayerData.GlobalUpdates:LockActiveUpdate(globalKey[1])
 		end
 				
@@ -256,6 +268,10 @@ function PlayerDataObject:GetGlobalKeys(): {GlobalKey}?
 	end
 	
 	for _, globalKey in ipairs(PlayerData.GlobalUpdates:GetLockedUpdates()) do
+		if not PlayerData:IsActive() then
+			return table.freeze(Keys)
+		end
+		
 		table.insert(Keys, {Key = globalKey[2].Key; Value = globalKey[2].Value; KeyId = globalKey[1]})
 		PlayerData.GlobalUpdates:ClearLockedUpdate(globalKey[1])
 	end
@@ -275,7 +291,7 @@ function PlayerDataObject:RemoveKey(key: string)
 	self.KeyRemoved:Fire(key)
 end
 
-function PlayerDataObject:UpdateKey<a>(key: string, callback: (oldValue: a) -> (any))
+function PlayerDataObject:UpdateKey<a, b>(key: string, callback: (oldValue: a) -> (b))
 	local PlayerData = self._data
 
 	if not PlayerData then
