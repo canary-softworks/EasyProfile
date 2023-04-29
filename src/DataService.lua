@@ -37,18 +37,31 @@ local DataStoreObject = { }
 local PlayerDataObject = { }
 
 local Signal = require(Plugins.Signal)
-local console = require(Plugins.Console)
 local OptionalParam = require(Plugins.OptionalParam)
 
 -- // Functions
 
-console.assert(
+local function assert<a, b>(assertion: a, msg: b): a?
+	if not assertion then
+		error(msg)
+		return nil
+	end
+	return assertion
+end
+
+local function silentError<a>(msg: a)
+	local thread = task.spawn(error, msg, 0)
+	task.cancel(thread)
+	thread = nil
+end
+
+assert(
 	RunService:IsServer(),
 	"DataService: Cannot run on any environments except the server."
 )
 
 ProfileService.CriticalStateSignal:Connect(function()
-	console.warn("DataService: There is an issue with data storing right now.")
+	warn("DataService: There is an issue with data storing right now.")
 end)
 
 Package.DataStoreCreated = Signal.new() :: ScriptSignal<string, dictionary>
@@ -57,11 +70,11 @@ function Package.CreateDataStore(name: string, defaultData: dictionary)
 	local DataStoreObject = setmetatable({ }, {__index = DataStoreObject})
 	local ProfileStore = ProfileService.GetProfileStore(name, defaultData)
 	
-	console.assert(name, "DataService: A datastore name must be defined.")
-	console.assert(defaultData, "DataService: Default user data must be defined.")
+	assert(name, "DataService: A datastore name must be defined.")
+	assert(defaultData, "DataService: Default user data must be defined.")
 
 	if LoadedPlayers[name] then
-		console.error(`DataService: A DataStore named '{name}' already exists.`)
+		error(`DataService: A DataStore named '{name}' already exists.`)
 	end
 
 	LoadedPlayers[name] = { }
@@ -80,7 +93,7 @@ end
 function DataStoreObject:GetLoadedPlayers(): {Player}
 	local PlayersTable = { }
 
-	for player, data in pairs(LoadedPlayers[self.Name]) do
+	for player, data in LoadedPlayers[self.Name] do
 		table.insert(PlayersTable, player)
 	end
 
@@ -95,20 +108,19 @@ function DataStoreObject:GetDataAsync(userId: number): dictionary?
 	local RequestedData = self._datastore:ViewProfileAsync(string.format(Settings.KeyStringPattern, userId)).Data
 	
 	if not RequestedData then
-		console.silentError(`DataService: Requested data for user {userId} does not exist.`)
+		silentError(`DataService: Requested data for user {userId} does not exist.`)
 		return nil
 	end
 	
 	return RequestedData
 end
 
-function DataStoreObject:LoadDataAsync(player: Player, reconcileData: boolean?, userIds: {number}? | number, claimedHandler: (placeId: number, gameJobId: string) -> ("ForceLoad" | "Cancel")?)
+function DataStoreObject:LoadDataAsync(player: Player, reconcileData: boolean?, claimedHandler: ((placeId: number, gameJobId: string) -> ("ForceLoad" | "Cancel"))?)
 	local PlayerDataObject = setmetatable({ }, {__index = PlayerDataObject})
 	
-	console.assert(player, "DataService: Cannot unclaim session lock for a nil player.")
+	assert(player, "DataService: Cannot unclaim session lock for a nil player.")
 	
 	reconcileData = OptionalParam(reconcileData, true)
-	userIds = OptionalParam(userIds, player.UserId)
 	claimedHandler = OptionalParam(claimedHandler, function()
 		return "ForceLoad"
 	end)
@@ -134,7 +146,7 @@ function DataStoreObject:LoadDataAsync(player: Player, reconcileData: boolean?, 
 	task.defer(function()
 		if not PlayerData then
 			player:Kick(`Could not load data for user {player.UserId}; retry later.`)
-			console.warn(`DataService: Could not load data for user {player.UserId}; retry later.`)
+			warn(`DataService: Could not load data for user {player.UserId}; retry later.`)
 			return
 		end
 
@@ -147,14 +159,7 @@ function DataStoreObject:LoadDataAsync(player: Player, reconcileData: boolean?, 
 			PlayerData:Reconcile()
 		end
 		
-		if type(userIds) == "table" then
-			for index, value in ipairs(userIds) do
-				PlayerData:AddUserId(value)
-			end
-		else
-			PlayerData:AddUserId(userIds)
-		end
-		
+		PlayerData:AddUserId(player.UserId)
 		PlayerData:ListenToRelease(function()
 			LoadedPlayers[self.Name][player] = nil
 			self.SessionLockUnclaimed:Fire(player)
@@ -168,11 +173,7 @@ function DataStoreObject:LoadDataAsync(player: Player, reconcileData: boolean?, 
 		LoadedPlayers[self.Name][player] = PlayerData
 		PlayerDataObject._data = LoadedPlayers[self.Name][player]
 				
-		for _, globalKey in ipairs(PlayerData.GlobalUpdates:GetActiveUpdates()) do
-			if not PlayerData:IsActive() then
-				break
-			end
-			
+		for _, globalKey in PlayerData.GlobalUpdates:GetActiveUpdates() do
 			PlayerData.GlobalUpdates:LockActiveUpdate(globalKey[1])
 		end
 				
@@ -196,17 +197,17 @@ end
 function DataStoreObject:UnclaimSessionLock(player: Player, valuesToSave: dictionary?)
 	local PlayerData = LoadedPlayers[self.Name][player]
 	
-	console.assert(player, "DataService: Cannot unclaim session lock for a nil player.")
+	assert(player, "DataService: Cannot unclaim session lock for a nil player.")
 	
 	if not PlayerData then
-		console.silentError(`DataService: User {player.UserId}'s data is not currently session-locked.`)
+		silentError(`DataService: User {player.UserId}'s data is not currently session-locked.`)
 		return
 	end
 	
 	if valuesToSave then
-		for key, value in pairs(valuesToSave) do
+		for key, value in valuesToSave do
 			if not PlayerData.Data[key] then
-				console.error(`DataService: Invalid key: {key} is an instance or does not exist.`)
+				error(`DataService: Invalid key: {key} is an instance or does not exist.`)
 				return
 			end
 			
@@ -252,7 +253,7 @@ function PlayerDataObject:GetKey<a>(key: string): a?
 	local PlayerData = self._data
 	
 	if not PlayerData or not PlayerData.Data[key] then
-		console.error(`DataService: Key '{key}' does not exist.`)
+		error(`DataService: Key '{key}' does not exist.`)
 		return nil
 	end
 	
@@ -267,11 +268,7 @@ function PlayerDataObject:GetGlobalKeys(): {GlobalKey}?
 		return nil
 	end
 	
-	for _, globalKey in ipairs(PlayerData.GlobalUpdates:GetLockedUpdates()) do
-		if not PlayerData:IsActive() then
-			return table.freeze(Keys)
-		end
-		
+	for _, globalKey in PlayerData.GlobalUpdates:GetLockedUpdates() do
 		table.insert(Keys, {Key = globalKey[2].Key; Value = globalKey[2].Value; KeyId = globalKey[1]})
 		PlayerData.GlobalUpdates:ClearLockedUpdate(globalKey[1])
 	end
@@ -279,11 +276,48 @@ function PlayerDataObject:GetGlobalKeys(): {GlobalKey}?
 	return table.freeze(Keys)
 end
 
+function PlayerDataObject:GetKeys(): {[string]: any}?
+	local PlayerData = self._data
+	local Keys = { }
+	
+	if not PlayerData then
+		return nil
+	end
+	
+	for keyName, key in PlayerData.Data do
+		Keys[keyName] = key
+	end
+	
+	return table.freeze(Keys)
+end
+
+function PlayerDataObject:GetUserIds(): {number}?
+	local PlayerData = self._data
+	
+	if not PlayerData then
+		return nil
+	end
+	
+	return PlayerData.UserIds
+end
+
+function PlayerDataObject:RemoveUserIds(userIds: {number})
+	local PlayerData = self._data
+	
+	if not PlayerData then
+		return
+	end
+	
+	for _, userId in userIds do
+		PlayerData:RemoveUserId(userId)
+	end
+end
+
 function PlayerDataObject:RemoveKey(key: string)
 	local PlayerData = self._data
 	
 	if not PlayerData or not PlayerData.Data[key] then
-		console.error(`DataService: Key '{key}' does not exist.`)
+		error(`DataService: Key '{key}' does not exist.`)
 		return
 	end
 
@@ -291,7 +325,7 @@ function PlayerDataObject:RemoveKey(key: string)
 	self.KeyRemoved:Fire(key)
 end
 
-function PlayerDataObject:UpdateKey<a, b>(key: string, callback: (oldValue: a) -> (b))
+function PlayerDataObject:UpdateKey<a>(key: string, callback: (oldValue: a) -> (any))
 	local PlayerData = self._data
 
 	if not PlayerData then
@@ -310,7 +344,7 @@ function PlayerDataObject:GetKeyChangedSignal(key: string): ScriptSignal<any>?
 	local Event = Signal.new()
 	
 	if not PlayerData or not PlayerData.Data[key] then
-		console.silentError(`DataService: Key '{key}' does not exist.`)
+		silentError(`DataService: Key '{key}' does not exist.`)
 		return nil
 	end
 	
@@ -341,7 +375,7 @@ function PlayerDataObject:GetMetaTag<a>(tag: string): a?
 	local PlayerData = self._data
 	
 	if not PlayerData or not PlayerData.MetaData.MetaTags then
-		console.silentError(`DataService: Tag '{tag}' does not exist.`)
+		silentError(`DataService: Tag '{tag}' does not exist.`)
 		return nil
 	end
 	
@@ -368,7 +402,7 @@ function PlayerDataObject:RemoveMetaTag(tag: string)
 	local PlayerData = self._data
 	
 	if not PlayerData or not PlayerData.MetaData.MetaTags[tag] then
-		console.silentError(`DataService: Tag '{tag}' does not exist.`)
+		silentError(`DataService: Tag '{tag}' does not exist.`)
 		return
 	end
 	
