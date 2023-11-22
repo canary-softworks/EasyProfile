@@ -35,21 +35,19 @@ EasyProfile.LoadedData = { }
 
 assert(RunService:IsServer(), "Data can only be handled on the server")
 
-local function IsProfileKeyValid(target: (Player | string | number)?, pattern: string, err: string, ...: string): string
-	assert(target, "Target does not exist; did you forget to pass it?")
-
-	if type(target) == "string" then
+local function IsProfileKeyValid(target: Player | string | number?): string
+	if type(target) == "number" then
+		return tostring(target)
+	elseif type(target) == "string" then
 		return target
-	elseif type(target) == "number" then
-		return string.format(pattern, target)
 	elseif typeof(target) == "Instance" and target:IsA("Player") then
-		return string.format(pattern, target.UserId)
+		return tostring(target.UserId)
 	else
-		error(string.format(err, ...))
+		error("Passed invalid target")
 	end
 end
 
-function EasyProfile.CreateProfileStore(name: string?, defaultProfileData: {[string]: any}, playerKeyPattern: string?)
+function EasyProfile.CreateProfileStore(name: string?, defaultProfileData: {[string]: any})
 	if not defaultProfileData then
 		error("Default profile data is required")
 	end
@@ -58,7 +56,6 @@ function EasyProfile.CreateProfileStore(name: string?, defaultProfileData: {[str
 	local ProfileStore = ProfileService.GetProfileStore(name or "Global", defaultProfileData)
 
 	ProfileStoreObjectMetatable._ProfileStore = ProfileStore
-	ProfileStoreObjectMetatable._Pattern = playerKeyPattern or "%d"
 	ProfileStoreObjectMetatable._Name = name or "Global"
 
 	EasyProfile.LoadedData[ProfileStoreObjectMetatable._Name] = { }
@@ -70,20 +67,14 @@ end
 
 function ProfileStoreObject:DeleteProfileAsync(target: number | string)
 	local CurrentLoadedProfileStore = self._ProfileStore
-	local ProfileKey = IsProfileKeyValid(target, self._Pattern,
-		"Cannot delete profile of type %s",
-		typeof(target)
-	)
+	local ProfileKey = IsProfileKeyValid(target)
 
 	CurrentLoadedProfileStore:WipeProfileAsync(ProfileKey)
 end
 
 function ProfileStoreObject:GetProfileAsync(target: number | string): Future.Future<boolean, {[string]: any}?, () -> ()?>
 	return Future.Try(function(profileStore, target)
-		local ProfileKey = IsProfileKeyValid(target, self._Pattern,
-			"Cannot get profile of type %s",
-			typeof(target)
-		)
+		local ProfileKey = IsProfileKeyValid(target)
 
 		local ProfileToView = profileStore:ViewProfileAsync(ProfileKey)
 
@@ -105,10 +96,7 @@ end
 function ProfileStoreObject:LoadProfileAsync(owner: Player | string, reconcileData: boolean?, profileClaimedHandler: (((placeId: number, gameJobId: string) -> (ProfileLoadType)) | ProfileLoadType)?): Future.Future<boolean, typeof(ProfileObject)?>
 	return Future.Try(function(profileStore, owner, reconcileData, profileClaimedHandler)
 		local ProfileObjectMetatable = setmetatable({ }, ProfileObject)
-		local ProfileKey = IsProfileKeyValid(owner, self._Pattern,
-			"Cannot get profile of type %s",
-	  		typeof(owner)
-		)
+		local ProfileKey = IsProfileKeyValid(owner)
 	
 		local LoadedProfile = profileStore:LoadProfileAsync(ProfileKey, profileClaimedHandler)
 	
@@ -158,10 +146,8 @@ function ProfileStoreObject:LoadProfileAsync(owner: Player | string, reconcileDa
 	end, self._ProfileStore, owner, reconcileData, profileClaimedHandler)
 end
 
-function ProfileStoreObject:UnclaimSessionLock(owner: Player | string, valuesToSave: {[string]: any}?, hopReadyCallback: (() -> ())?)
-	local ProfileKey = IsProfileKeyValid(owner, self._Pattern,
-	 "Cannot unclaim invalid session reference: %s",
-	  typeof(owner))
+function ProfileStoreObject:UnclaimSessionLock(owner: Player | string, valuesToSave: {[string]: any}?, hopReadyCallback: () -> ()?)
+	local ProfileKey = IsProfileKeyValid(owner)
 	
 	local Profile = EasyProfile.LoadedData[self._Name][ProfileKey].Profile
 
@@ -184,9 +170,7 @@ end
 
 function ProfileStoreObject:SetGlobalKeyAsync(target: number | string, key: string, value: any)
 	local CurrentLoadedProfileStore = self._ProfileStore
-	local ProfileKey = IsProfileKeyValid(target, self._Pattern,
-	 "Cannot sent global key to invalid user: %s",
-	  typeof(target))
+	local ProfileKey = IsProfileKeyValid(target)
 
 	CurrentLoadedProfileStore:GlobalUpdateProfileAsync(ProfileKey, function(globalUpdates)
 		globalUpdates:AddActiveUpdate({
@@ -198,9 +182,7 @@ end
 
 function ProfileStoreObject:RemoveGlobalKeyAsync(target: number | string, keyId: number)
 	local CurrentLoadedProfileStore = self._ProfileStore
-	local ProfileKey = IsProfileKeyValid(target, self._Pattern,
-	 "Cannot remove global key for invalid user: %s",
-	  typeof(target))
+	local ProfileKey = IsProfileKeyValid(target)
 
 	CurrentLoadedProfileStore:GlobalUpdateProfileAsync(ProfileKey, function(globalUpdates)
 		globalUpdates:ClearActiveUpdate(keyId)
