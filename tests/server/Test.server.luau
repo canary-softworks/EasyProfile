@@ -11,6 +11,16 @@ Players.PlayerAdded:Connect(function(player)
         local ProfileData = profileObject:GetProfileData()
 
         print(ProfileData)
+
+        for _, globalKey in profileObject:GetGlobalKeys() do
+            print(globalKey)
+        end
+
+        profileObject.GlobalKeyAdded:Connect(function(globalKey)
+            print(globalKey)
+        end)
+
+        DataStore:SetGlobalKeyAsync(player.UserId, "Test", `Hello {player.UserId}! Welcome to the testing area`)
     end)
 end)
 

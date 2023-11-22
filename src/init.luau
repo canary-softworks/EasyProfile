@@ -93,7 +93,7 @@ function ProfileStoreObject:GetProfileAsync(target: number | string): Future.Fut
 	end, self._ProfileStore, target)
 end
 
-function ProfileStoreObject:LoadProfileAsync(owner: Player | string, reconcileData: boolean?, profileClaimedHandler: (((placeId: number, gameJobId: string) -> (ProfileLoadType)) | ProfileLoadType)?): Future.Future<boolean, typeof(ProfileObject)?>
+function ProfileStoreObject:LoadProfileAsync(owner: Player | string, reconcileData: boolean?, profileClaimedHandler: (((placeId: number, gameJobId: string) -> (ProfileLoadType)) | ProfileLoadType)?)
 	return Future.Try(function(profileStore, owner, reconcileData, profileClaimedHandler)
 		local ProfileObjectMetatable = setmetatable({ }, ProfileObject)
 		local ProfileKey = IsProfileKeyValid(owner)
@@ -133,14 +133,14 @@ function ProfileStoreObject:LoadProfileAsync(owner: Player | string, reconcileDa
 		end)
 	
 		LoadedProfile.GlobalUpdates:ListenToNewLockedUpdate(function(keyId: number, data: any)
-			ProfileObjectMetatable.GlobalKeyAdded:Fire({{Key = data.Key; Value = data.Value; KeyId = keyId;}})
+			ProfileObjectMetatable.GlobalKeyAdded:Fire({Key = data.Key; Value = data.Value; KeyId = keyId;})
 			LoadedProfile.GlobalUpdates:ClearLockedUpdate(keyId)
 		end)
 
 		ProfileObjectMetatable.GlobalKeyAdded = Signal() :: Signal.Signal<GlobalKey>
 		ProfileObjectMetatable.Profile = LoadedProfile
 
-		EasyProfile.LoadedData[self._Name][owner] = ProfileObjectMetatable
+		EasyProfile.LoadedData[self._Name][ProfileKey] = ProfileObjectMetatable
 
 		return table.freeze(ProfileObjectMetatable)
 	end, self._ProfileStore, owner, reconcileData, profileClaimedHandler)

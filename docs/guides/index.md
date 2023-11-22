@@ -7,11 +7,6 @@ local DataService = require(game:GetService("ReplicatedStorage").Packages.EasyPr
 local MyNewDataStore = DataService.CreateProfileStore("MyProfileStore", {Tokens = 100, Gold = 5, Items = {"Wooden Sword"}})
 ```
 
-```lua
-local DataService = require(game:GetService("ReplicatedStorage").Packages.EasyProfile)
-local MyNewDataStore = DataService.CreateProfileStore("MyProfileStore", {Tokens = 100, Gold = 5, Items = {"Wooden Sword"}}) -- Change the pattern if you want to, it's better for usage
-```
-
 Now, we can detect when the player joins, and when they do, we can load in their data by using `ProfileStoreObject:LoadProfileAsync`. This will load in the profile and allow you to interact with the data. Since it returns a Future, we will use the `After` method; please also note that you can use the `Await` method as well which will yield the thread and return the profile object. Here's how you would do the latter:
 
 ```lua

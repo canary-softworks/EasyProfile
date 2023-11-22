@@ -72,7 +72,7 @@ local function PlayerAdded(player)
         end
         
         for _, globalKey in playerProfile:GetGlobalKeys() do
-           print(globalKey.Key, ":", globalKey.Value) -- Output: {Key = "GlobalKeyTest", Value = "somerandomstringdata", KeyId = 1}
+           print(globalKey.Key, ":", globalKey.Value) -- Output: GlobalKeyTest : somerandomstringdata
         end
 
         playerProfile.GlobalKeyAdded:Connect(function(globalKey)

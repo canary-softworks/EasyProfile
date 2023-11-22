@@ -26,7 +26,7 @@ No description
 
 A table of the currently loaded profiles in game, each key is based on a profile store.
 
-* **{ [string]: { [Player | string]: [Profile](/api/profile) } }**
+* **{ [string]: { [string]: [Profile](/api/profile) } }**
 
 ## Functions
 
