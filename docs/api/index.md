@@ -26,7 +26,7 @@ No description
 
 A table of the currently loaded profiles in game, each key is based on a profile store.
 
-* **[Dictionary](/api/engine/types#dictionary)<string, [Dictionary](/api/engine/types#dictionary)<Player | string, [ProfileObject](/api/libraries/data/profileobject)>>**
+* **{ [string]: { [Player | string]: [Profile](/api/profile) } }**
 
 ## Functions
 
@@ -44,4 +44,4 @@ The default data of profie when loaded, only applies if this is their first time
 
 **Returns**
 
-* **[ProfileStoreObject?](/api/libraries/data/profilestoreobject)**
+* **[ProfileStoreObject?](/api/profilestore)**
