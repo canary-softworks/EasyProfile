@@ -1,0 +1,23 @@
+{
+    "emitLegacyScripts": false,
+    "name": "easyprofile-dev",
+    "tree": {
+        "$className": "DataModel",
+        "ReplicatedStorage": {
+            "Packages": {
+                "$path": "Packages"
+            }
+        },
+        "ServerStorage": {
+            "Packages": {
+                "$path": "ServerPackages",
+                "EasyProfile": {
+                    "$path": "src"
+                }
+            },
+            "Tests": {
+                "$path": "tests/server"
+            }
+        }
+    }
+}
