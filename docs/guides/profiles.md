@@ -2,6 +2,50 @@
 
 Now we can get started on profiles. As explained in the introduction, profiles are essentially the successor to datastore keys. These are much easier to use and make the process of data saving so much easier. Setting the data here is as simple as editing a table. No getter or setter functions, you can make your own.
 
+
+
+<!-- ----------------
+
+```lua
+local EasyProfile = require(location)
+-- Here we create our ProfileStore, similar to DataStoreService:GetDataStore()
+local PlayerDataStore = EasyProfile.CreateProfileStore("PlayerDataStore.V1", {})
+
+local dataModule = {
+	Profiles = {}, -- This is where we would store all of our players profiles, we put it under the module so that we can access these players profiles in other scripts if we need to. 
+}
+
+-- self: Player
+function dataModule:Joined()
+	PlayerDataStore:LoadProfileAsync(self):After(function(success, playerProfile)
+        if not success then
+            -- If something went wrong it would let us know
+			warn("Not successful in retrieving " .. self.DisplayName)
+			return
+		end
+
+        -- Here we add the players profile data to the table above
+		dataModule.Profiles[self.UserId] = playerProfile:GetProfileData()
+
+        -- An example of editing the players data
+		dataModule.Profiles[self.UserId]["Foo"] = 1
+	end)
+end
+
+-- self: Player
+function dataModule:Leaving()
+    -- Printing the data so that we can see what is being saved
+	print(dataModule.Profiles[self.UserId])
+	PlayerDataStore:UnclaimSessionLock(self)
+end
+
+return dataModule
+``` -->
+
+
+
+----------------
+
 What we will do first is get the data we can edit from the profile. In order to do this, you must call `PlayerProfile:GetProfileData`.
 
 ```lua
