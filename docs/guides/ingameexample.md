@@ -20,7 +20,7 @@ local dataModule = {
 
 function dataModule:Joined(player: Player)
     -- Loads the player's profile
-	PlayerDataStore:LoadProfileAsync(self):After(function(success, playerProfile)
+	PlayerDataStore:LoadProfileAsync(player):After(function(success, playerProfile)
         if not success then
             -- If something went wrong it would let us know
 			warn("Not successful in retrieving " .. player.DisplayName)
@@ -52,7 +52,7 @@ local dataModule = {
 
 function dataModule:Joined(player: Player)
     -- Loads the player's profile
-	PlayerDataStore:LoadProfileAsync(self):After(function(success, playerProfile)
+	PlayerDataStore:LoadProfileAsync(player):After(function(success, playerProfile)
         if not success then
             -- If something went wrong it would let us know
 			warn("Not successful in retrieving " .. player.DisplayName)
