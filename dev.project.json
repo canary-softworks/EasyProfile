@@ -5,16 +5,16 @@
         "$className": "DataModel",
         "ReplicatedStorage": {
             "Packages": {
-                "$path": "Packages"
-            }
-        },
-        "ServerStorage": {
-            "ServerPackages": {
-                "$path": "ServerPackages",
+                "$path": "Packages",
+                "profileservice": {
+                    "$path": "ServerPackages/_Index/grilme99_profileservice@1.0.0/ProfileService"
+                },
                 "EasyProfile": {
                     "$path": "src"
                 }
-            },
+            }
+        },
+        "ServerStorage": {
             "Tests": {
                 "$path": "tests/server"
             }
