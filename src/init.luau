@@ -1,21 +1,20 @@
 -- // Package
 
 local EasyProfile = { }
-local Packages = game:GetService("ReplicatedStorage").Packages
 
 -- // Variables
 
 export type GlobalKey = {Key: string, Value: any, KeyId: number}
 
-type ProfileMetaData = {ProfileCreated: number; ProfileLoadCount: number; ProfileActiveSession: {placeId: number; jobId: string;}}
+type ProfileMetaData = {ProfileCreated: number, ProfileLoadCount: number, ProfileActiveSession: {placeId: number, jobId: string}}
 type ProfileLoadType = "Repeat" | "Cancel" | "ForceLoad" | "Steal"
 
 local RunService = game:GetService("RunService")
 local HttpService = game:GetService("HttpService")
 
 local ProfileService = require(script.Parent.profileservice)
-local Signal = require(Packages.signal)
-local Future = require(Packages.future)
+local Signal = require(script.Parent.signal) -- ?????
+local Future = require(script.Parent.future) -- ?????
 
 local ValidLeaderboardTypes = {
 	"boolean",

@@ -9,7 +9,7 @@
             }
         },
         "ServerStorage": {
-            "Packages": {
+            "ServerPackages": {
                 "$path": "ServerPackages",
                 "EasyProfile": {
                     "$path": "src"
