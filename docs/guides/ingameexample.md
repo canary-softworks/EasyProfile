@@ -9,6 +9,8 @@ When handling data we use `playerProfile:GetProfileData` instead of `Profile.Dat
 Lets start off by seeing how we would handle the players data when they join.
 
 ```lua
+-- MrGameboy123456789, 11/24/23
+
 local EasyProfile = require(location)
 
 -- Params: ProfileStoreName, Data that will be given to the player when they join for the first time
@@ -18,6 +20,7 @@ local dataModule = {
 	Profiles = {}, -- This is where we would store all of our players profiles, we put it under the module so that we can access these players profiles in other scripts if we need to. 
 }
 
+-- Run this function on a game.Players.PlayerAdded event
 function dataModule:Joined(player: Player)
     -- Loads the player's profile
 	PlayerDataStore:LoadProfileAsync(player):After(function(success, playerProfile)
@@ -41,6 +44,8 @@ return dataModule
 Now to handle data when the player leaves we would add this:
 
 ```lua
+-- MrGameboy123456789, 11/24/23
+
 local EasyProfile = require(location)
 
 -- Params: ProfileStoreName, Data that will be given to the player when they join for the first time
@@ -50,6 +55,7 @@ local dataModule = {
 	Profiles = {}, -- This is where we would store all of our players profiles, we put it under the module so that we can access these players profiles in other scripts if we need to. 
 }
 
+-- Run this function on a game.Players.PlayerAdded event
 function dataModule:Joined(player: Player)
     -- Loads the player's profile
 	PlayerDataStore:LoadProfileAsync(player):After(function(success, playerProfile)
@@ -67,6 +73,7 @@ function dataModule:Joined(player: Player)
 	end)
 end
 
+-- Run this function on a game.Players.PlayerRemoving event
 function dataModule:Leaving(player)
     -- Printing the data so that we can see what is being saved
 	print(dataModule.Profiles[player.UserId])
