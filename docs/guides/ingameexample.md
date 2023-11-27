@@ -21,7 +21,7 @@ local dataModule = {
 }
 
 -- Run this function on a game.Players.PlayerAdded event
-function dataModule:Joined(player: Player)
+function dataModule.Joined(player: Player)
     -- Loads the player's profile
 	PlayerDataStore:LoadProfileAsync(player):After(function(success, playerProfile)
         if not success then
@@ -56,7 +56,7 @@ local dataModule = {
 }
 
 -- Run this function on a game.Players.PlayerAdded event
-function dataModule:Joined(player: Player)
+function dataModule.Joined(player: Player)
     -- Loads the player's profile
 	PlayerDataStore:LoadProfileAsync(player):After(function(success, playerProfile)
         if not success then
@@ -74,7 +74,7 @@ function dataModule:Joined(player: Player)
 end
 
 -- Run this function on a game.Players.PlayerRemoving event
-function dataModule:Leaving(player)
+function dataModule.Leaving(player: Player)
     -- Printing the data so that we can see what is being saved
 	print(dataModule.Profiles[player.UserId])
 
