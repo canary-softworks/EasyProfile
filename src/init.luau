@@ -66,7 +66,6 @@ end
 function ProfileStoreObject:DeleteProfileAsync(target: number | string)
 	local CurrentLoadedProfileStore = self._ProfileStore
 	local ProfileKey = IsProfileKeyValid(target)
-
 	CurrentLoadedProfileStore:WipeProfileAsync(ProfileKey)
 end
 
