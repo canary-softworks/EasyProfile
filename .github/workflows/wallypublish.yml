@@ -1,3 +1,5 @@
+name: Publish package to Wally
+
 on:
   release:
     types: [published]
