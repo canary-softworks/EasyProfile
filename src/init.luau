@@ -1,11 +1,10 @@
--- // Package
+-- Package --
 
 local EasyProfile = { }
 
--- // Variables
+-- Variables --
 
 export type GlobalKey = {Key: string, Value: any, KeyId: number}
-
 type ProfileMetaData = {ProfileCreated: number, ProfileLoadCount: number, ProfileActiveSession: {placeId: number, jobId: string}}
 type ProfileLoadType = "Repeat" | "Cancel" | "ForceLoad" | "Steal"
 
@@ -13,8 +12,8 @@ local RunService = game:GetService("RunService")
 local HttpService = game:GetService("HttpService")
 
 local ProfileService = require(script.Parent.profileservice)
-local Signal = require(script.Parent.signal) -- ?????
-local Future = require(script.Parent.future) -- ?????
+local Signal = require(script.Parent.Signal)
+local Future = require(script.Parent.Future)
 
 local ValidLeaderboardTypes = {
 	"boolean",
@@ -30,7 +29,7 @@ ProfileObject.__index = ProfileObject
 
 EasyProfile.LoadedData = { }
 
--- // Functions
+-- Functions --
 
 assert(RunService:IsServer(), "Data can only be handled on the server")
 
@@ -62,7 +61,7 @@ function EasyProfile.CreateProfileStore(name: string?, defaultProfileData: {[str
 	return table.freeze(ProfileStoreObjectMetatable)
 end
 
--- // ProfileStoreObject
+-- ProfileStoreObject --
 
 function ProfileStoreObject:DeleteProfileAsync(target: number | string)
 	local CurrentLoadedProfileStore = self._ProfileStore
@@ -96,7 +95,6 @@ function ProfileStoreObject:LoadProfileAsync(owner: Player | string, reconcileDa
 	return Future.Try(function(profileStore, owner, reconcileData, profileClaimedHandler)
 		local ProfileObjectMetatable = setmetatable({ }, ProfileObject)
 		local ProfileKey = IsProfileKeyValid(owner)
-	
 		local LoadedProfile = profileStore:LoadProfileAsync(ProfileKey, profileClaimedHandler)
 	
 		if not LoadedProfile then
@@ -122,6 +120,9 @@ function ProfileStoreObject:LoadProfileAsync(owner: Player | string, reconcileDa
 				owner:Kick(`Data for user {owner.UserId} active on another server, please try again`)
 			end
 		end)
+
+		ProfileObjectMetatable.GlobalKeyAdded = Signal() :: Signal.Signal<GlobalKey>
+		ProfileObjectMetatable.Profile = LoadedProfile
 	
 		for _, globalKey in LoadedProfile.GlobalUpdates:GetActiveUpdates() do
 			LoadedProfile.GlobalUpdates:LockActiveUpdate(globalKey[1])
@@ -136,9 +137,6 @@ function ProfileStoreObject:LoadProfileAsync(owner: Player | string, reconcileDa
 			LoadedProfile.GlobalUpdates:ClearLockedUpdate(keyId)
 		end)
 
-		ProfileObjectMetatable.GlobalKeyAdded = Signal() :: Signal.Signal<GlobalKey>
-		ProfileObjectMetatable.Profile = LoadedProfile
-
 		EasyProfile.LoadedData[self._Name][ProfileKey] = ProfileObjectMetatable
 
 		return table.freeze(ProfileObjectMetatable)
@@ -147,7 +145,6 @@ end
 
 function ProfileStoreObject:UnclaimSessionLock(owner: Player | string, valuesToSave: {[string]: any}?, hopReadyCallback: () -> ()?)
 	local ProfileKey = IsProfileKeyValid(owner)
-	
 	local Profile = EasyProfile.LoadedData[self._Name][ProfileKey].Profile
 
 	if valuesToSave then
@@ -188,7 +185,7 @@ function ProfileStoreObject:RemoveGlobalKeyAsync(target: number | string, keyId:
 	end)
 end
 
--- // ProfileObjects
+-- ProfileObjects --
 
 function ProfileObject:GetProfileData(): ({[string]: any}?, {[string]: any}?)
 	return self.Profile.Data, self.Profile.MetaData.MetaTags
@@ -269,7 +266,6 @@ end
 
 function ProfileObject:GetMetaData(): ProfileMetaData?
 	local Profile = self.Profile
-
 	return table.freeze({
 		ProfileCreated = Profile.MetaData.ProfileCreateTime :: number;
 		ProfileLoadCount = Profile.MetaData.SessionLoadCount :: number;
@@ -280,12 +276,7 @@ end
 function ProfileObject:GetDataUsage(): number?
 	local EncodedUsage = HttpService:JSONEncode(self.Profile.Data)
 	local UsageLength = string.len(EncodedUsage)
-
 	return (UsageLength / 4194304) * 100
 end
-
--- // Connections
-
--- // Actions
 
 return table.freeze(EasyProfile)

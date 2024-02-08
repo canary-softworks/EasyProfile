@@ -1,6 +1,6 @@
 [package]
 name = "canary-development/easyprofile"
-version = "4.0.1"
+version = "4.0.2"
 registry = "https://github.com/UpliftGames/wally-index"
 realm = "server"
 
@@ -15,8 +15,8 @@ include = [
 ]
 
 [dependencies]
-signal = "red-blox/signal@2.0.1"
-future = "red-blox/future@1.0.1"
+Signal = "red-blox/signal@^2.0.0"
+Future = "red-blox/future@^1.0.0"
 
 [server-dependencies]
 profileservice = "grilme99/profileservice@1.0.0"

@@ -1,4 +1,4 @@
-local EasyProfile = require(game:GetService("ServerStorage").Packages.EasyProfile)
+local EasyProfile = require(game:GetService("ReplicatedStorage").Packages.EasyProfile)
 local Players = game:GetService("Players")
 local DataStore = EasyProfile.CreateProfileStore("TestDataStore", {
     Items = {"Sword"},
