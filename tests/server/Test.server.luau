@@ -22,6 +22,10 @@ Players.PlayerAdded:Connect(function(player)
 
         DataStore:SetGlobalKeyAsync(player.UserId, "Test", `Hello {player.UserId}! Welcome to the testing area`)
     end)
+
+    DataStore:GetProfileAsync(player.UserId):After(function(success, data)
+        print(success, data)
+    end)
 end)
 
 Players.PlayerRemoving:Connect(function(player)

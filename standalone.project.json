@@ -2,6 +2,6 @@
     "name": "standalone-build",
     "tree": {
         "$path": "Packages",
-        "UIShelf": {"$path": "src"}
+        "EasyProfile": {"$path": "src"}
     }
 }
