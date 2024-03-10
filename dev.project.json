@@ -6,9 +6,6 @@
         "ReplicatedStorage": {
             "Packages": {
                 "$path": "Packages",
-                "profileservice": {
-                    "$path": "ServerPackages/_Index/grilme99_profileservice@1.0.0/ProfileService"
-                },
                 "EasyProfile": {
                     "$path": "src"
                 }

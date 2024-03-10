@@ -11,7 +11,7 @@ type ProfileLoadType = "Repeat" | "Cancel" | "ForceLoad" | "Steal"
 local RunService = game:GetService("RunService")
 local HttpService = game:GetService("HttpService")
 
-local ProfileService = require(script.Parent.profileservice)
+local ProfileService = require(script.Parent.ProfileService)
 local Signal = require(script.Parent.Signal)
 local Future = require(script.Parent.Future)
 
